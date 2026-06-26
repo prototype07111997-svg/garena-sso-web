@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSO KEY ➔ EVENT LINK</title>
+    <meta name="description" content="Chuyển đổi Garena SSO Key sang liên kết sự kiện Liên Quân Mobile">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="stars"></div>
+    <div class="container">
+        <header>
+            <div class="logo-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+            </div>
+            <h1>SSO KEY ➔ EVENT LINK</h1>
+        </header>
+
+        <main class="card">
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="sso">SSO Key</button>
+                <button class="tab-btn" data-tab="account">Tài khoản Garena</button>
+            </div>
+
+            <div id="tab-sso" class="tab-pane active">
+                <div class="input-group">
+                    <label for="sso-key-input">SSO KEY</label>
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="sso-key-input" 
+                            placeholder="Nhập mã Garena SSO Key tại đây..." 
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-account" class="tab-pane">
+                <div class="input-group">
+                    <label for="username-input">TÀI KHOẢN</label>
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="username-input" 
+                            placeholder="Username, Email hoặc Số điện thoại..." 
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label for="password-input">MẬT KHẨU</label>
+                    <div class="input-wrapper">
+                        <input 
+                            type="password" 
+                            id="password-input" 
+                            placeholder="Nhập mật khẩu Garena..." 
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <button id="convert-btn" class="btn-primary">
+                <span class="btn-text">Chuyển đổi</span>
+                <div class="spinner hidden" id="btn-spinner"></div>
+            </button>
+
+            <!-- Success Container -->
+            <div id="success-container" class="result-box success hidden">
+                <div class="result-header">
+                    <span class="icon">✓</span> THÀNH CÔNG
+                </div>
+                <div class="result-content">
+                    <div class="info-row">
+                        <span class="label">UID</span>
+                        <span class="value" id="uid-val">395852357432635</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">TÊN TÀI KHOẢN</span>
+                        <span class="value" id="username-val">hoanghai21115</span>
+                    </div>
+                    <div class="info-row link-row">
+                        <span class="label">EVENT LINK</span>
+                        <div class="link-wrapper">
+                            <a href="#" target="_blank" id="event-link-url" class="event-link">https://shootingwar.lienquan.garena.vn/connect/garena/callback?access_token=...</a>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button id="copy-btn" class="btn-secondary">
+                            <span class="icon-copy">📋</span> Sao chép
+                        </button>
+                        <a href="#" target="_blank" id="open-link-btn" class="btn-tertiary">
+                            Mở link <span class="arrow">↗</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Container -->
+            <div id="error-container" class="result-box error hidden">
+                <div class="result-header">
+                    <span class="icon">✗</span> THẤT BẠI
+                </div>
+                <div class="result-content">
+                    <p id="error-msg">SSO Key không chính xác hoặc đã hết hạn.</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Garena Event Link Converter &copy; 2026</p>
+        </footer>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">Đã sao chép liên kết thành công!</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
