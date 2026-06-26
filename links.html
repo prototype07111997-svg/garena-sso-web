@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIÊN KẾT HỖ TRỢ & CÔNG CỤ</title>
+    <meta name="description" content="Trang tổng hợp liên kết hỗ trợ sự kiện Liên Quân Mobile">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: #0b0c10;
+            color: #c5c6c7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            padding: 20px;
+        }
+
+        /* Ambient background stars */
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(26, 26, 36, 0.8), #0b0c10);
+            z-index: -2;
+        }
+        
+        .stars::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 20px);
+            background-size: 550px 550px, 350px 350px, 250px 250px;
+            background-position: 0 0, 40px 60px, 130px 270px;
+            opacity: 0.15;
+            z-index: -1;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        /* Profile Header */
+        .profile {
+            margin-bottom: 30px;
+        }
+
+        .avatar-glow {
+            position: relative;
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 16px auto;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff7b54, #ffb26b);
+            padding: 3px;
+            box-shadow: 0 0 20px rgba(255, 123, 84, 0.4);
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: #1e1e28;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 36px;
+            color: #ff7b54;
+            font-weight: bold;
+        }
+
+        .profile h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .profile p {
+            font-size: 14px;
+            color: #8892b0;
+            font-weight: 400;
+        }
+
+        /* Glassmorphic Links Card */
+        .links-card {
+            background: rgba(30, 30, 40, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Link Buttons */
+        .link-btn {
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding: 16px 24px;
+            margin-bottom: 16px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .link-btn:last-child {
+            margin-bottom: 0;
+        }
+
+        .link-btn .btn-icon {
+            font-size: 22px;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .link-btn .btn-text {
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        .link-btn .btn-arrow {
+            font-size: 16px;
+            opacity: 0.5;
+            transition: transform 0.3s ease;
+        }
+
+        /* Hover states */
+        .link-btn:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #ff7b54;
+            box-shadow: 0 8px 24px rgba(255, 123, 84, 0.25);
+        }
+
+        .link-btn:hover .btn-arrow {
+            opacity: 1;
+            transform: translateX(4px);
+        }
+
+        /* Special style for primary tools */
+        .link-btn.primary {
+            background: linear-gradient(135deg, rgba(255, 123, 84, 0.1), rgba(255, 178, 107, 0.05));
+            border-color: rgba(255, 123, 84, 0.3);
+        }
+        
+        .link-btn.primary:hover {
+            background: linear-gradient(135deg, rgba(255, 123, 84, 0.2), rgba(255, 178, 107, 0.1));
+            border-color: #ff7b54;
+        }
+
+        /* Modal Overlay for Instructions */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #15161e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 440px;
+            padding: 24px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: left;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #8892b0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: #ffffff;
+        }
+
+        .modal-body {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #c5c6c7;
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .step {
+            margin-bottom: 16px;
+        }
+
+        .step-num {
+            display: inline-block;
+            background: rgba(255, 123, 84, 0.15);
+            color: #ff7b54;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: 600;
+            margin-right: 8px;
+            font-size: 12px;
+        }
+
+        .step h4 {
+            display: inline-block;
+            color: #ffffff;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .step p {
+            padding-left: 36px;
+            color: #8892b0;
+        }
+
+        .code-box {
+            background: #0b0c10;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #ffb26b;
+            margin-top: 6px;
+            word-break: break-all;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #4f5b66;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+    <div class="container">
+        <!-- Profile -->
+        <div class="profile">
+            <div class="avatar-glow">
+                <div class="avatar">🎮</div>
+            </div>
+            <h2>ADMIN GARENA EVENT</h2>
+            <p>Hệ thống hỗ trợ & công cụ sự kiện Liên Quân Mobile</p>
+        </div>
+
+        <!-- Links Card -->
+        <div class="links-card">
+            <!-- 1. Tool -->
+            <a href="index.html" class="link-btn primary">
+                <span class="btn-icon">🚀</span>
+                <span class="btn-text">CÔNG CỤ ĐỔI SSO KEY</span>
+                <span class="btn-arrow">➔</span>
+            </a>
+
+            <!-- 2. Zalo -->
+            <a href="https://zalo.me/g/zoifkf821" target="_blank" class="link-btn">
+                <span class="btn-icon">💬</span>
+                <span class="btn-text">NHÓM ZALO HỖ TRỢ (FREE)</span>
+                <span class="btn-arrow">➔</span>
+            </a>
+
+            <!-- 3. Guide -->
+            <button id="guide-trigger" class="link-btn">
+                <span class="btn-icon">📖</span>
+                <span class="btn-text">HƯỚNG DẪN LẤY SSO KEY</span>
+                <span class="btn-arrow">➔</span>
+            </button>
+        </div>
+
+        <footer>
+            <p>Garena Link Portal &copy; 2026</p>
+        </footer>
+    </div>
+
+    <!-- Modal Hướng Dẫn -->
+    <div id="guide-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Cách lấy Garena SSO Key</h3>
+                <button id="close-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <h4>Đăng nhập tài khoản</h4>
+                    <p>Truy cập vào trang quản lý tài khoản chính thức của Garena tại địa chỉ <a href="https://account.garena.com" target="_blank" style="color: #ff7b54;">account.garena.com</a> và đăng nhập.</p>
+                </div>
+                
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <h4>Mở Console trình duyệt</h4>
+                    <p>Nhấn phím <b>F12</b> (hoặc chuột phải chọn <b>Kiểm tra / Inspect</b>), sau đó chuyển sang tab <b>Console</b>.</p>
+                </div>
+
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <h4>Lấy mã SSO Key</h4>
+                    <p>Dán đoạn code dưới đây vào tab Console và nhấn <b>Enter</b> để hiển thị mã SSO Key của bạn:</p>
+                    <div class="code-box">document.cookie.split('; ').find(row => row.startsWith('sso_key=')).split('=')[1]</div>
+                </div>
+
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <h4>Copy và đổi link</h4>
+                    <p>Sao chép đoạn mã gồm 64 ký tự vừa xuất hiện, quay lại công cụ đổi SSO Key và dán vào để lấy liên kết sự kiện.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('guide-modal');
+        const trigger = document.getElementById('guide-trigger');
+        const closeBtn = document.getElementById('close-modal');
+
+        trigger.addEventListener('click', () => {
+            modal.classList.add('active');
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
