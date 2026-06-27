@@ -16,13 +16,63 @@ try:
 except ImportError:
     check_login = None
 
-# Force UTF-8 encoding on Windows to avoid console print errors
+# Enable ANSI color support and UTF-8 encoding on Windows console
+class C:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    WHITE = "\033[97m"
+
 if sys.platform == "win32":
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    except Exception:
+        pass
     try:
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
     except Exception:
         pass
+
+# Global statistics counters for report summary
+_success_count = 0
+_claimed_count = 0
+_fail_count = 0
+_stats_lock = threading.Lock()
+
+def print_summary(total_lines):
+    print("\n" + "=" * 58)
+    print(f"║ {C.BOLD}{C.CYAN}                    KẾT QUẢ THỐNG KÊ                    {C.RESET} ║")
+    print("=" * 58)
+    print(f"║  ► Tổng số tài khoản đã quét :  {C.BOLD}{total_lines:<8}{C.RESET}                    ║")
+    print(f"║  ► {C.GREEN}Thành công (+150 QH)      {C.RESET}:  {C.BOLD}{C.GREEN}{_success_count:<8}{C.RESET}                    ║")
+    print(f"║  ► {C.BLUE}Đã nhận trước đó          {C.RESET}:  {C.BOLD}{C.BLUE}{_claimed_count:<8}{C.RESET}                    ║")
+    print(f"║  ► {C.RED}Lỗi/Thất bại              {C.RESET}:  {C.BOLD}{C.RED}{_fail_count:<8}{C.RESET}                    ║")
+    print("=" * 58)
+
+def print_banner():
+    banner = [
+        "                 ██╗  ██╗████████╗",
+        "                 ██║  ██║╚══██╔══╝",
+        "                 ███████║   ██║   ",
+        "                 ██╔══██║   ██║   ",
+        "                 ██║  ██║   ██║   ",
+        "                 ╚═╝  ╚═╝   ╚═╝   "
+    ]
+    colors = [C.RED, C.YELLOW, C.GREEN, C.CYAN, C.BLUE, C.WHITE]
+    print()
+    for line, color in zip(banner, colors):
+        print(f"{C.BOLD}{color}{line}{C.RESET}")
+    print(f"{C.BOLD}{C.CYAN}" + "=" * 59 + f"{C.RESET}")
+    print(f"║ {C.BOLD}{C.WHITE}     HỆ THỐNG VƯỢT ẢI TỰ ĐỘNG - NHẬN +150 QUÂN HUY     {C.RESET} ║")
+    print(f"{C.BOLD}{C.CYAN}" + "=" * 59 + f"{C.RESET}")
+    print()
 
 USE_PROXY = True
 
@@ -339,19 +389,29 @@ def _run_event_automation_internal(access_token, proxy=None):
                     "complete": True
                 }
             }
-            try:
-                r = sess.post(
-                    "https://shootingwar.lienquan.garena.vn/api/app/game/update_status",
-                    json=payload,
-                    timeout=10,
-                    verify=False
-                )
-                if r.status_code != 200:
-                    return f"stage_{stage}_failed_status_{r.status_code}"
-                played_stages = True
-                time.sleep(0.2) # tiny delay to separate stage posts
-            except Exception as e:
-                return f"stage_{stage}_error_{str(e)}"
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    r = sess.post(
+                        "https://shootingwar.lienquan.garena.vn/api/app/game/update_status",
+                        json=payload,
+                        timeout=10,
+                        verify=False
+                    )
+                    if r.status_code == 200:
+                        played_stages = True
+                        break
+                    elif r.status_code == 429:
+                        time.sleep(2.5)
+                    else:
+                        time.sleep(1.0)
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        return f"stage_{stage}_error_{str(e)}"
+                    time.sleep(1.5)
+            else:
+                return f"stage_{stage}_failed_status_{r.status_code}"
+            time.sleep(0.5)
 
     # Re-fetch start to get the newly generated special mission ID if we played
     if played_stages:
@@ -370,20 +430,24 @@ def _run_event_automation_internal(access_token, proxy=None):
 
     # 5. Claim daily missions/special missions
     token_count = "N/A"
-    try:
-        r = sess.post(
-            "https://shootingwar.lienquan.garena.vn/api/app/mission/update_status",
-            data="", # Content-Length: 0
-            timeout=10,
-            verify=False
-        )
-        if r.status_code == 200:
-            mission_res = r.json()
-            token_count = str(mission_res.get("userExtension", {}).get("tokenNum", "N/A"))
-        else:
-            token_count = f"failed-status-{r.status_code}"
-    except Exception as e:
-        token_count = f"error-{str(e)}"
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            r = sess.post("https://shootingwar.lienquan.garena.vn/api/app/me/claim_daily_mission", timeout=10, verify=False)
+            if r.status_code == 200:
+                mission_res = r.json()
+                token_count = str(mission_res.get("userExtension", {}).get("tokenNum", "N/A"))
+                break
+            elif r.status_code == 429:
+                time.sleep(2.5)
+            else:
+                time.sleep(1.0)
+        except Exception as e:
+            if attempt == max_retries - 1:
+                token_count = f"error-{str(e)}"
+            time.sleep(1.5)
+    else:
+        token_count = f"failed-status-{r.status_code}"
         
     # 6. Claim special reward (150 Limited QH)
     qh_status = "no-special-id"
@@ -391,25 +455,33 @@ def _run_event_automation_internal(access_token, proxy=None):
         if already_claimed:
             qh_status = "already-claimed"
         else:
-            time.sleep(1.0) # prevent 429 rate limit between claims
             payload = {"userMissionSpecialId": special_id}
-            try:
-                r = sess.post(
-                    "https://shootingwar.lienquan.garena.vn/api/app/me/claim_special_reward",
-                    json=payload,
-                    timeout=10,
-                    verify=False
-                )
-                if r.status_code == 200:
-                    qh_status = "claimed"
-                else:
-                    try:
-                        err_detail = r.json().get("detail", "")
-                        qh_status = f"failed-{err_detail or r.status_code}"
-                    except Exception:
-                        qh_status = f"failed-{r.status_code}"
-            except Exception as e:
-                qh_status = f"error-{str(e)}"
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    time.sleep(1.5)
+                    r = sess.post(
+                        "https://shootingwar.lienquan.garena.vn/api/app/me/claim_special_reward",
+                        json=payload,
+                        timeout=10,
+                        verify=False
+                    )
+                    if r.status_code == 200:
+                        qh_status = "claimed"
+                        break
+                    elif r.status_code == 429:
+                        time.sleep(2.5)
+                    else:
+                        try:
+                            err_detail = r.json().get("detail", "")
+                            qh_status = f"failed-{err_detail or r.status_code}"
+                        except Exception:
+                            qh_status = f"failed-{r.status_code}"
+                        break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        qh_status = f"error-{str(e)}"
+                    time.sleep(1.5)
                 
     return f"success_tokens_{token_count}_qh_{qh_status}"
 
@@ -432,11 +504,11 @@ def run_event_automation(access_token, proxy=None):
             
     # Try with selected proxy (or direct if no proxy configured)
     res = _run_event_automation_internal(access_token, use_proxy)
-    if res.startswith("success_"):
+    if res.startswith("success_") and not any(err in res for err in ("Connection", "ProxyError", "connect", "refused", "Max retries")):
         return res
         
     # If failed due to connection/proxy error, fallback to direct!
-    if any(err in res for err in ("Connection", "ProxyError", "connect", "refused", "login_error")):
+    if not res.startswith("success_") or any(err in res for err in ("Connection", "ProxyError", "connect", "refused", "login_error", "Max retries")):
         res_direct = _run_event_automation_internal(access_token, proxy=None)
         return res_direct
         
@@ -446,50 +518,45 @@ def process_and_claim(res, thread_name, proxy=None):
     if res["status"] == "success":
         access_token = res.get("access_token")
         if access_token:
-            with _print_lock:
-                print(f"[ ] {thread_name} -> Bắt đầu vượt ải Garena Event...")
             ev_res = run_event_automation(access_token, proxy)
-            with _print_lock:
-                if ev_res.startswith("success_"):
-                    parts = ev_res.split("_")
-                    token_count = "N/A"
-                    qh_msg = "Không rõ"
-                    
-                    if "tokens" in parts:
-                        idx = parts.index("tokens")
-                        if idx + 1 < len(parts):
-                            token_count = parts[idx+1]
-                            
-                    if "qh" in parts:
-                        idx = parts.index("qh")
-                        if idx + 1 < len(parts):
-                            status = parts[idx+1]
-                            if status == "claimed":
-                                qh_msg = "Đã nhận +150 QH!"
-                            elif status == "already-claimed":
-                                qh_msg = "Quân Huy đã nhận trước đó"
-                            elif status == "no-special-id":
-                                qh_msg = "Không tìm thấy nhiệm vụ"
-                            elif status.startswith("failed"):
-                                qh_msg = f"Thất bại ({status})"
-                            else:
-                                qh_msg = f"Trạng thái: {status}"
+            if ev_res.startswith("success_"):
+                parts = ev_res.split("_")
+                token_count = "N/A"
+                qh_msg = "Không rõ"
+                
+                if "tokens" in parts:
+                    idx = parts.index("tokens")
+                    if idx + 1 < len(parts):
+                        token_count = parts[idx+1]
                         
-                    res["tokens"] = token_count
-                    res["qh_msg"] = qh_msg
-                    res["event_status"] = "success"
-                    print(f"[ ] {thread_name} -> Vượt ải ok (Quà cổ điển đã nhận) | Token: {token_count} | QH: {qh_msg}")
-                else:
-                    res["event_status"] = f"failed_{ev_res}"
-                    print(f"[ ] {thread_name} -> Vượt ải thất bại: {ev_res}")
+                if "qh" in parts:
+                    idx = parts.index("qh")
+                    if idx + 1 < len(parts):
+                        status = parts[idx+1]
+                        if status == "claimed":
+                            qh_msg = "Đã nhận +150 QH!"
+                        elif status == "already-claimed":
+                            qh_msg = "Quân Huy đã nhận trước đó"
+                        elif status == "no-special-id":
+                            qh_msg = "Không tìm thấy nhiệm vụ"
+                        elif status.startswith("failed"):
+                            qh_msg = f"Thất bại ({status})"
+                        else:
+                            qh_msg = f"Trạng thái: {status}"
+                    
+                res["tokens"] = token_count
+                res["qh_msg"] = qh_msg
+                res["event_status"] = "success"
+            else:
+                res["event_status"] = f"failed_{ev_res}"
+                res["qh_msg"] = f"Lỗi ({ev_res})"
         else:
             res["event_status"] = "missing_access_token"
-            with _print_lock:
-                print(f"[ ] {thread_name} -> Không lấy được access_token để chạy event")
+            res["qh_msg"] = "Lỗi (missing_access_token)"
     return res
 
 def main():
-    global USE_PROXY
+    global USE_PROXY, _success_count, _claimed_count, _fail_count
     if "--no-proxy" in sys.argv:
         USE_PROXY = False
         sys.argv.remove("--no-proxy")
@@ -516,75 +583,149 @@ def main():
             except Exception:
                 pass
 
-            print(f"Đang đọc file {filepath} (đa luồng: {threads}) trong vòng lặp liên tục (nhấn Ctrl+C để dừng)...")
-            while True:
-                try:
-                    if not os.path.exists(filepath):
-                        print(f"Lỗi: File {filepath} đã bị xóa hoặc di chuyển.")
-                        time.sleep(5)
-                        continue
-                        
-                    with open(filepath, "r", encoding="utf-8-sig") as f:
-                        lines = [line.strip() for line in f if line.strip()]
-                        
-                    if not lines:
-                        print("File trống, đang đợi thêm dữ liệu...")
-                        time.sleep(5)
-                        continue
-                        
-                    print(f"\n[{time.strftime('%H:%M:%S')}] Tìm thấy {len(lines)} dòng. Bắt đầu xử lý đa luồng...")
+            print_banner()
+            print(f"Đang đọc file {filepath} (đa luồng: {threads})...")
+            try:
+                # Reset counters
+                with _stats_lock:
+                    _success_count = 0
+                    _claimed_count = 0
+                    _fail_count = 0
                     
-                    def worker(line):
-                        thread_name = threading.current_thread().name
-                        if ":" in line:
-                            parts = line.split(":", 1)
-                            account, password = parts[0].strip(), parts[1].strip()
-                            with _print_lock:
-                                print(f"[ ] {thread_name} -> Đang xử lý account: {account}")
-                            res = check_account_with_retry(account, password)
-                            with _print_lock:
-                                if res["status"] == "success":
-                                    print(f"[ ] {thread_name} -> Hoàn thành account: {account} | UID: {res['result']} | Link: {res['event_link']}")
-                                    with _file_lock:
-                                        with open("event_links.txt", "a", encoding="utf-8") as out:
-                                            out.write(f"{account}:{password} | UID: {res['result']} | Link: {res['event_link']}\n")
-                                else:
-                                    print(f"[ ] {thread_name} -> Thất bại account: {account} | {res.get('detail', 'unknown')}")
-                                    with _file_lock:
-                                        with open("event_fails.txt", "a", encoding="utf-8") as out:
-                                            out.write(f"{account}:{password} | {res.get('detail', 'unknown')}\n")
+                with open(filepath, "r", encoding="utf-8-sig") as f:
+                    lines = [line.strip() for line in f if line.strip()]
+                    
+                if not lines:
+                    print("File trống, chương trình kết thúc.")
+                    sys.exit(0)
+                    
+                print(f"\n[{time.strftime('%H:%M:%S')}] Tìm thấy {len(lines)} dòng. Bắt đầu xử lý đa luồng...")
+                
+                def worker(line):
+                    global _success_count, _claimed_count, _fail_count
+                    os.makedirs("Nhan_QH", exist_ok=True)
+                    thread_name = threading.current_thread().name
+                    splitter = None
+                    if "|" in line:
+                        splitter = "|"
+                    elif ":" in line:
+                        splitter = ":"
+                        
+                    if splitter:
+                        parts = line.split(splitter, 1)
+                        account, password = parts[0].strip(), parts[1].strip()
+                        res = check_account_with_retry(account, password)
+                        if res["status"] == "success":
                             process_and_claim(res, thread_name)
-                            return res
+                            qh_msg = res.get("qh_msg", "Thất bại")
+                            
+                            if qh_msg == "Đã nhận +150 QH!":
+                                display_msg = "QH: Đã nhận +150 QH!"
+                                filename = "Nhan_QH/Da_Nhan_150QH.txt"
+                                file_content = f"{line}\n"
+                            elif qh_msg == "Quân Huy đã nhận trước đó":
+                                display_msg = "đã nhận trước đó"
+                                filename = "Nhan_QH/Da_Nhan_Truoc_Do.txt"
+                                file_content = f"{line}\n"
+                            else:
+                                display_msg = f"QH: {qh_msg}"
+                                filename = "Nhan_QH/Loi.txt"
+                                file_content = f"{line} | {qh_msg}\n"
+                                
+                            with _file_lock:
+                                with open(filename, "a", encoding="utf-8") as out:
+                                    out.write(file_content)
+                                if filename == "Nhan_QH/Loi.txt":
+                                    with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                        out.write(f"{line}\n")
+                                    
+                            with _stats_lock:
+                                if qh_msg == "Đã nhận +150 QH!":
+                                    _success_count += 1
+                                    color_tag = f"{C.GREEN}[THÀNH CÔNG]{C.RESET}"
+                                elif qh_msg == "Quân Huy đã nhận trước đó":
+                                    _claimed_count += 1
+                                    color_tag = f"{C.BLUE}[ĐÃ NHẬN TRƯỚC]{C.RESET}"
+                                else:
+                                    _fail_count += 1
+                                    color_tag = f"{C.RED}[THẤT BẠI]{C.RESET}"
+                                    
+                            with _print_lock:
+                                print(f"{color_tag} {account} | {display_msg}")
                         else:
-                            sso_key = line
-                            key_display = f"{sso_key[:10]}...{sso_key[-10:] if len(sso_key) > 20 else ''}"
+                            with _file_lock:
+                                with open("Nhan_QH/Loi.txt", "a", encoding="utf-8") as out:
+                                    out.write(f"{line} | {res.get('detail', 'unknown')}\n")
+                                with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                    out.write(f"{line}\n")
+                            with _stats_lock:
+                                _fail_count += 1
+                                color_tag = f"{C.RED}[LỖI ACC]{C.RESET}"
                             with _print_lock:
-                                print(f"[ ] {thread_name} -> Đang xử lý SSO Key: {key_display}")
-                            res = check_sso_with_retry(sso_key)
-                            with _print_lock:
-                                if res["status"] == "success":
-                                    print(f"[ ] {thread_name} -> Hoàn thành SSO Key: {key_display} | Username: {res.get('username')} | Link: {res['event_link']}")
-                                    with _file_lock:
-                                        with open("event_links.txt", "a", encoding="utf-8") as out:
-                                            out.write(f"SSO_KEY: {sso_key} | Username: {res.get('username')} | UID: {res['result']} | Link: {res['event_link']}\n")
-                                else:
-                                    print(f"[ ] {thread_name} -> Thất bại SSO Key: {key_display} | {res.get('detail', 'unknown')}")
-                                    with _file_lock:
-                                        with open("event_fails.txt", "a", encoding="utf-8") as out:
-                                            out.write(f"SSO_KEY: {sso_key} | {res.get('detail', 'unknown')}\n")
+                                print(f"{color_tag} {account} | {res.get('detail', 'unknown')}")
+                        return res
+                    else:
+                        sso_key = line
+                        key_display = f"{sso_key[:10]}..."
+                        res = check_sso_with_retry(sso_key)
+                        if res["status"] == "success":
                             process_and_claim(res, thread_name)
-                            return res
+                            qh_msg = res.get("qh_msg", "Thất bại")
+                            
+                            if qh_msg == "Đã nhận +150 QH!":
+                                display_msg = "QH: Đã nhận +150 QH!"
+                                filename = "Nhan_QH/Da_Nhan_150QH.txt"
+                                file_content = f"{line}\n"
+                            elif qh_msg == "Quân Huy đã nhận trước đó":
+                                display_msg = "đã nhận trước đó"
+                                filename = "Nhan_QH/Da_Nhan_Truoc_Do.txt"
+                                file_content = f"{line}\n"
+                            else:
+                                display_msg = f"QH: {qh_msg}"
+                                filename = "Nhan_QH/Loi.txt"
+                                file_content = f"{line} | {qh_msg}\n"
+                                
+                            with _file_lock:
+                                with open(filename, "a", encoding="utf-8") as out:
+                                    out.write(file_content)
+                                if filename == "Nhan_QH/Loi.txt":
+                                    with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                        out.write(f"{line}\n")
+                                    
+                            with _stats_lock:
+                                if qh_msg == "Đã nhận +150 QH!":
+                                    _success_count += 1
+                                    color_tag = f"{C.GREEN}[THÀNH CÔNG]{C.RESET}"
+                                elif qh_msg == "Quân Huy đã nhận trước đó":
+                                    _claimed_count += 1
+                                    color_tag = f"{C.BLUE}[ĐÃ NHẬN TRƯỚC]{C.RESET}"
+                                else:
+                                    _fail_count += 1
+                                    color_tag = f"{C.RED}[THẤT BẠI]{C.RESET}"
+                                    
+                            with _print_lock:
+                                print(f"{color_tag} {res.get('username') or key_display} | {display_msg}")
+                        else:
+                            with _file_lock:
+                                with open("Nhan_QH/Loi.txt", "a", encoding="utf-8") as out:
+                                    out.write(f"{line} | {res.get('detail', 'unknown')}\n")
+                                with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                    out.write(f"{line}\n")
+                            with _stats_lock:
+                                _fail_count += 1
+                                color_tag = f"{C.RED}[LỖI ACC]{C.RESET}"
+                            with _print_lock:
+                                print(f"{color_tag} {key_display} | {res.get('detail', 'unknown')}")
+                        return res
 
-                    with ThreadPoolExecutor(max_workers=threads) as executor:
-                        futures = [executor.submit(worker, line) for line in lines]
-                        for fut in as_completed(futures):
-                            fut.result()
-                    
-                    print("Đã quét xong toàn bộ file. Đợi 5 giây rồi quét lại...")
-                    time.sleep(5)
-                except KeyboardInterrupt:
-                    print("\nĐã dừng vòng lặp quét file.")
-                    break
+                with ThreadPoolExecutor(max_workers=threads) as executor:
+                    futures = [executor.submit(worker, line) for line in lines]
+                    for fut in as_completed(futures):
+                        fut.result()
+                
+                print_summary(len(lines))
+            except KeyboardInterrupt:
+                print("\nĐã dừng quét file.")
         else:
             # Check single key
             key = arg1
@@ -592,12 +733,31 @@ def main():
             process_and_claim(res, "MainThread")
             print(json.dumps(res, indent=2, ensure_ascii=False))
     else:
-        print("=== TRÌNH CHECK GARENA SSO KEY & ACCOUNT ===")
+        print_banner()
         proxy_choice = input("Bạn có muốn sử dụng Proxy không? (y/n, mặc định y): ").strip().lower()
         if proxy_choice == "n":
             USE_PROXY = False
             print("[ ] Chạy trực tiếp (DIRECT) không sử dụng Proxy.")
         else:
+            print("[ Cấu hình Proxy ]")
+            kiot_key = load_kiot_key()
+            static_proxies = load_static_proxies()
+            current_config = ""
+            if kiot_key:
+                current_config = f"KiotProxy Key: {kiot_key[:5]}...{kiot_key[-5:] if len(kiot_key)>10 else ''}"
+            elif static_proxies:
+                current_config = f"{len(static_proxies)} Static Proxies"
+            
+            prompt_msg = "Nhập KiotProxy Key hoặc Proxy mới (nhấn Enter để dùng cấu hình cũ"
+            if current_config:
+                prompt_msg += f" [{current_config}]"
+            prompt_msg += "): "
+            
+            user_proxy_input = input(prompt_msg).strip()
+            if user_proxy_input:
+                with open("proxy.txt", "w", encoding="utf-8") as f:
+                    f.write(user_proxy_input)
+                print("[ ] Đã cập nhật proxy.txt mới!")
             print("[ ] Sử dụng Proxy từ cấu hình proxy.txt / proxya.txt.")
             
         while True:
@@ -622,79 +782,163 @@ def main():
                     except Exception:
                         pass
 
-                    print(f"Đang đọc file {user_input} (đa luồng: {threads}) trong vòng lặp liên tục (nhấn Ctrl+C để dừng)...")
-                    while True:
-                        try:
-                            if not os.path.exists(user_input):
-                                print(f"Lỗi: File {user_input} không tồn tại.")
-                                time.sleep(5)
-                                continue
-                                
-                            with open(user_input, "r", encoding="utf-8-sig") as f:
-                                lines = [line.strip() for line in f if line.strip()]
-                                
-                            if not lines:
-                                print("File trống, đang đợi thêm dữ liệu...")
-                                time.sleep(5)
-                                continue
-                                
-                            print(f"\n[{time.strftime('%H:%M:%S')}] Tìm thấy {len(lines)} dòng. Bắt đầu xử lý đa luồng...")
-                            
-                            def worker(line):
-                                thread_name = threading.current_thread().name
-                                if ":" in line:
-                                    parts = line.split(":", 1)
-                                    account, password = parts[0].strip(), parts[1].strip()
-                                    with _print_lock:
-                                        print(f"[ ] {thread_name} -> Đang xử lý account: {account}")
-                                    res = check_account_with_retry(account, password)
-                                    with _print_lock:
-                                        if res["status"] == "success":
-                                            print(f"[ ] {thread_name} -> Hoàn thành account: {account} | UID: {res['result']} | Link: {res['event_link']}")
-                                            with _file_lock:
-                                                with open("event_links.txt", "a", encoding="utf-8") as out:
-                                                    out.write(f"{account}:{password} | UID: {res['result']} | Link: {res['event_link']}\n")
-                                        else:
-                                            print(f"[ ] {thread_name} -> Thất bại account: {account} | {res.get('detail', 'unknown')}")
-                                            with _file_lock:
-                                                with open("event_fails.txt", "a", encoding="utf-8") as out:
-                                                    out.write(f"{account}:{password} | {res.get('detail', 'unknown')}\n")
-                                    process_and_claim(res, thread_name)
-                                    return res
-                                else:
-                                    sso_key = line
-                                    key_display = f"{sso_key[:10]}...{sso_key[-10:] if len(sso_key) > 20 else ''}"
-                                    with _print_lock:
-                                        print(f"[ ] {thread_name} -> Đang xử lý SSO Key: {key_display}")
-                                    res = check_sso_with_retry(sso_key)
-                                    with _print_lock:
-                                        if res["status"] == "success":
-                                            print(f"[ ] {thread_name} -> Hoàn thành SSO Key: {key_display} | Username: {res.get('username')} | Link: {res['event_link']}")
-                                            with _file_lock:
-                                                with open("event_links.txt", "a", encoding="utf-8") as out:
-                                                    out.write(f"SSO_KEY: {sso_key} | Username: {res.get('username')} | UID: {res['result']} | Link: {res['event_link']}\n")
-                                        else:
-                                            print(f"[ ] {thread_name} -> Thất bại SSO Key: {key_display} | {res.get('detail', 'unknown')}")
-                                            with _file_lock:
-                                                with open("event_fails.txt", "a", encoding="utf-8") as out:
-                                                    out.write(f"SSO_KEY: {sso_key} | {res.get('detail', 'unknown')}\n")
-                                    process_and_claim(res, thread_name)
-                                    return res
-
-                            with ThreadPoolExecutor(max_workers=threads) as executor:
-                                futures = [executor.submit(worker, line) for line in lines]
-                                for fut in as_completed(futures):
-                                    fut.result()
-                            
-                            print("Đã quét xong toàn bộ file. Đợi 5 giây rồi quét lại...")
-                            time.sleep(5)
-                        except KeyboardInterrupt:
-                            print("\nĐã dừng vòng lặp quét file.")
+                    print(f"Đang đọc file {user_input} (đa luồng: {threads})...")
+                    try:
+                        if not os.path.exists(user_input):
+                            print(f"Lỗi: File {user_input} không tồn tại.")
                             break
+                            
+                        # Reset counters
+                        with _stats_lock:
+                            _success_count = 0
+                            _claimed_count = 0
+                            _fail_count = 0
+                            
+                        with open(user_input, "r", encoding="utf-8-sig") as f:
+                            lines = [line.strip() for line in f if line.strip()]
+                            
+                        if not lines:
+                            print("File trống.")
+                            break
+                            
+                        print(f"\n[{time.strftime('%H:%M:%S')}] Tìm thấy {len(lines)} dòng. Bắt đầu xử lý đa luồng...")
+                        
+                        def worker(line):
+                            global _success_count, _claimed_count, _fail_count
+                            os.makedirs("Nhan_QH", exist_ok=True)
+                            thread_name = threading.current_thread().name
+                            splitter = None
+                            if "|" in line:
+                                splitter = "|"
+                            elif ":" in line:
+                                splitter = ":"
+                                
+                            if splitter:
+                                parts = line.split(splitter, 1)
+                                account, password = parts[0].strip(), parts[1].strip()
+                                res = check_account_with_retry(account, password)
+                                if res["status"] == "success":
+                                    process_and_claim(res, thread_name)
+                                    qh_msg = res.get("qh_msg", "Thất bại")
+                                    
+                                    if qh_msg == "Đã nhận +150 QH!":
+                                        display_msg = "QH: Đã nhận +150 QH!"
+                                        filename = "Nhan_QH/Da_Nhan_150QH.txt"
+                                        file_content = f"{line}\n"
+                                    elif qh_msg == "Quân Huy đã nhận trước đó":
+                                        display_msg = "đã nhận trước đó"
+                                        filename = "Nhan_QH/Da_Nhan_Truoc_Do.txt"
+                                        file_content = f"{line}\n"
+                                    else:
+                                        display_msg = f"QH: {qh_msg}"
+                                        filename = "Nhan_QH/Loi.txt"
+                                        file_content = f"{line} | {qh_msg}\n"
+                                        
+                                    with _file_lock:
+                                        with open(filename, "a", encoding="utf-8") as out:
+                                            out.write(file_content)
+                                        if filename == "Nhan_QH/Loi.txt":
+                                            with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                                out.write(f"{line}\n")
+                                                
+                                    with _stats_lock:
+                                        if qh_msg == "Đã nhận +150 QH!":
+                                            _success_count += 1
+                                            color_tag = f"{C.GREEN}[THÀNH CÔNG]{C.RESET}"
+                                        elif qh_msg == "Quân Huy đã nhận trước đó":
+                                            _claimed_count += 1
+                                            color_tag = f"{C.BLUE}[ĐÃ NHẬN TRƯỚC]{C.RESET}"
+                                        else:
+                                            _fail_count += 1
+                                            color_tag = f"{C.RED}[THẤT BẠI]{C.RESET}"
+                                            
+                                    with _print_lock:
+                                        print(f"{color_tag} {account} | {display_msg}")
+                                else:
+                                    with _file_lock:
+                                        with open("Nhan_QH/Loi.txt", "a", encoding="utf-8") as out:
+                                            out.write(f"{line} | {res.get('detail', 'unknown')}\n")
+                                        with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                            out.write(f"{line}\n")
+                                    with _stats_lock:
+                                        _fail_count += 1
+                                        color_tag = f"{C.RED}[LỖI ACC]{C.RESET}"
+                                    with _print_lock:
+                                        print(f"{color_tag} {account} | {res.get('detail', 'unknown')}")
+                                return res
+                            else:
+                                sso_key = line
+                                key_display = f"{sso_key[:10]}..."
+                                res = check_sso_with_retry(sso_key)
+                                if res["status"] == "success":
+                                    process_and_claim(res, thread_name)
+                                    qh_msg = res.get("qh_msg", "Thất bại")
+                                    
+                                    if qh_msg == "Đã nhận +150 QH!":
+                                        display_msg = "QH: Đã nhận +150 QH!"
+                                        filename = "Nhan_QH/Da_Nhan_150QH.txt"
+                                        file_content = f"{line}\n"
+                                    elif qh_msg == "Quân Huy đã nhận trước đó":
+                                        display_msg = "đã nhận trước đó"
+                                        filename = "Nhan_QH/Da_Nhan_Truoc_Do.txt"
+                                        file_content = f"{line}\n"
+                                    else:
+                                        display_msg = f"QH: {qh_msg}"
+                                        filename = "Nhan_QH/Loi.txt"
+                                        file_content = f"{line} | {qh_msg}\n"
+                                        
+                                    with _file_lock:
+                                        with open(filename, "a", encoding="utf-8") as out:
+                                            out.write(file_content)
+                                        if filename == "Nhan_QH/Loi.txt":
+                                            with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                                out.write(f"{line}\n")
+                                                
+                                    with _stats_lock:
+                                        if qh_msg == "Đã nhận +150 QH!":
+                                            _success_count += 1
+                                            color_tag = f"{C.GREEN}[THÀNH CÔNG]{C.RESET}"
+                                        elif qh_msg == "Quân Huy đã nhận trước đó":
+                                            _claimed_count += 1
+                                            color_tag = f"{C.BLUE}[ĐÃ NHẬN TRƯỚC]{C.RESET}"
+                                        else:
+                                            _fail_count += 1
+                                            color_tag = f"{C.RED}[THẤT BẠI]{C.RESET}"
+                                            
+                                    with _print_lock:
+                                        print(f"{color_tag} {res.get('username') or key_display} | {display_msg}")
+                                else:
+                                    with _file_lock:
+                                        with open("Nhan_QH/Loi.txt", "a", encoding="utf-8") as out:
+                                            out.write(f"{line} | {res.get('detail', 'unknown')}\n")
+                                        with open("Nhan_QH/Chay_Lai.txt", "a", encoding="utf-8") as out:
+                                            out.write(f"{line}\n")
+                                    with _stats_lock:
+                                        _fail_count += 1
+                                        color_tag = f"{C.RED}[LỖI ACC]{C.RESET}"
+                                    with _print_lock:
+                                        print(f"{color_tag} {key_display} | {res.get('detail', 'unknown')}")
+                                return res
+
+                        with ThreadPoolExecutor(max_workers=threads) as executor:
+                            futures = [executor.submit(worker, line) for line in lines]
+                            for fut in as_completed(futures):
+                                fut.result()
+                        
+                        print_summary(len(lines))
+                    except KeyboardInterrupt:
+                        print("\nĐã dừng quét file.")
+                        break
                 else:
                     # Check single key or account
-                    if ":" in user_input:
-                        parts = user_input.split(":", 1)
+                    splitter = None
+                    if "|" in user_input:
+                        splitter = "|"
+                    elif ":" in user_input:
+                        splitter = ":"
+                        
+                    if splitter:
+                        parts = user_input.split(splitter, 1)
                         account, password = parts[0].strip(), parts[1].strip()
                         print(f"Đang check account: {account}...")
                         res = check_account_with_retry(account, password)

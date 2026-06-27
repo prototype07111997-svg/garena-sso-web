@@ -68,6 +68,21 @@ header {
     margin-bottom: 24px;
 }
 
+.ascii-logo {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1.15;
+    background: linear-gradient(45deg, #ff3860, #ffaa00, #00d1b2, #3273dc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 5px rgba(255, 56, 96, 0.3));
+    white-space: pre;
+    margin: 0 auto 10px auto;
+    display: inline-block;
+    letter-spacing: 0.5px;
+}
+
 .logo-dots {
     display: flex;
     justify-content: center;
