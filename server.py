@@ -7,7 +7,7 @@ import sys
 # Add current directory to path to import check_sso
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
-    from check_sso import check_sso_with_retry, check_account_with_retry
+    from check_sso import check_sso_with_retry, check_account_with_retry, process_and_claim
 except ImportError:
     print("Lỗi: Không thể tìm thấy file check_sso.py.")
     sys.exit(1)
@@ -50,9 +50,13 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 if sso_key:
                     # Run the robust SSO check with automatic proxy support
                     result = check_sso_with_retry(sso_key)
+                    if result.get("status") == "success":
+                        process_and_claim(result, "WebServer")
                 elif account and password:
                     # Run Garena Account check
                     result = check_account_with_retry(account, password)
+                    if result.get("status") == "success":
+                        process_and_claim(result, "WebServer")
                 else:
                     self.send_error_response("invalid_input_data")
                     return

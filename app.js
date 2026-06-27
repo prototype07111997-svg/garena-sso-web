@@ -119,6 +119,32 @@ document.addEventListener('DOMContentLoaded', () => {
         uidVal.textContent = data.result || 'N/A';
         usernameVal.textContent = data.username || 'N/A';
         
+        const tokenRow = document.getElementById('token-row');
+        const tokenVal = document.getElementById('token-val');
+        const qhRow = document.getElementById('qh-row');
+        const qhVal = document.getElementById('qh-val');
+        
+        if (data.tokens) {
+            tokenVal.textContent = data.tokens;
+            tokenRow.style.display = 'flex';
+        } else {
+            tokenRow.style.display = 'none';
+        }
+        
+        if (data.qh_msg) {
+            qhVal.textContent = data.qh_msg;
+            qhRow.style.display = 'flex';
+            if (data.qh_msg.includes('thành công') || data.qh_msg.includes('+150')) {
+                qhVal.style.color = '#4cd137';
+            } else if (data.qh_msg.includes('trước đó')) {
+                qhVal.style.color = '#fbc531';
+            } else {
+                qhVal.style.color = '#e84118';
+            }
+        } else {
+            qhRow.style.display = 'none';
+        }
+        
         const link = data.event_link || '#';
         eventLinkUrl.textContent = link;
         eventLinkUrl.href = link;
