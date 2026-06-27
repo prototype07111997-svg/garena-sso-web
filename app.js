@@ -33,6 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
             activeTab = btn.getAttribute('data-tab');
             document.getElementById(`tab-${activeTab}`).classList.add('active');
             
+            const mainTitle = document.getElementById('main-title');
+            if (mainTitle) {
+                if (activeTab === 'sso') {
+                    mainTitle.innerText = "SSO Key";
+                } else {
+                    mainTitle.innerText = "Login Tài Khoản tự lấy SSO Key";
+                }
+            }
+            
             successContainer.classList.add('hidden');
             errorContainer.classList.add('hidden');
         });
