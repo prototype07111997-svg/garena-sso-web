@@ -125,15 +125,36 @@
             </div>
         </main>
         
-        <div class="support-links" style="text-align: center; margin-top: 20px;">
-            <a href="links.html" style="color: #ff7b54; text-decoration: none; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
+        <div class="support-links" style="text-align: center; margin-top: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center;">
+            <a href="links.html" style="color: #00f0ff; text-decoration: none; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
                 💬 Danh sách Liên kết & Nhóm Zalo Hỗ trợ ➔
             </a>
+            <button id="open-donate-btn" class="btn-donate-heart">
+                💖 Ủng hộ người giàu tình cảm ➔
+            </button>
         </div>
 
         <footer>
             <p>Garena Event Link Converter &copy; 2026</p>
         </footer>
+    </div>
+
+    <!-- Donate Modal -->
+    <div id="donate-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ỦNG HỘ NGƯỜI GIÀU TÌNH CẢM 💖</h3>
+                <span class="close-btn" id="close-donate-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <img src="qr_donate.png" alt="Donate QR" class="donate-qr-img">
+                <div class="bank-details">
+                    <p class="bank-title">MB BANK (Ngân hàng Quân đội)</p>
+                    <p class="bank-account">STK: <strong id="bank-stk">0348658748</strong> <span class="copy-small" id="copy-stk-btn">Sao chép</span></p>
+                    <p class="bank-name">Chủ tài khoản: <strong>HUỲNH TÚ</strong></p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Notification Toast -->

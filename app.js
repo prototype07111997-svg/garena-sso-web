@@ -186,6 +186,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2000);
     }
 
+    // Donate Modal Logic
+    const openDonateBtn = document.getElementById('open-donate-btn');
+    const closeDonateBtn = document.getElementById('close-donate-btn');
+    const donateModal = document.getElementById('donate-modal');
+    const copyStkBtn = document.getElementById('copy-stk-btn');
+    const bankStk = document.getElementById('bank-stk');
+
+    if (openDonateBtn && donateModal && closeDonateBtn) {
+        openDonateBtn.addEventListener('click', () => {
+            donateModal.classList.remove('hidden');
+        });
+
+        closeDonateBtn.addEventListener('click', () => {
+            donateModal.classList.add('hidden');
+        });
+
+        // Close when clicking outside content
+        donateModal.addEventListener('click', (e) => {
+            if (e.target === donateModal) {
+                donateModal.classList.add('hidden');
+            }
+        });
+    }
+
+    if (copyStkBtn && bankStk) {
+        copyStkBtn.addEventListener('click', () => {
+            const stkText = bankStk.textContent;
+            navigator.clipboard.writeText(stkText).then(() => {
+                showToast('Đã sao chép số tài khoản thành công!');
+            }).catch(() => {
+                const tempEl = document.createElement('textarea');
+                tempEl.value = stkText;
+                document.body.appendChild(tempEl);
+                tempEl.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempEl);
+                showToast('Đã sao chép số tài khoản thành công!');
+            });
+        });
+    }
+
     // Event listeners
     convertBtn.addEventListener('click', handleConvert);
     [ssoInput, usernameInput, passwordInput].forEach(input => {
