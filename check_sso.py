@@ -391,6 +391,7 @@ def _run_event_automation_internal(access_token, proxy=None):
         if already_claimed:
             qh_status = "already-claimed"
         else:
+            time.sleep(1.0) # prevent 429 rate limit between claims
             payload = {"userMissionSpecialId": special_id}
             try:
                 r = sess.post(
